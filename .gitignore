@@ -1,3 +1,5 @@
+data/models/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -152,5 +154,4 @@ cython_debug/
 #.idea/
 *.mp4
 *.h5
-*.pkl
 *.avi

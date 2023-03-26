@@ -1,33 +1,39 @@
-# from facemap import process
-from glob import glob
-from moviepy.editor import *
+import subprocess
 import os
-import multiprocessing
+from settings import vids_dir, raw_dir
 
-num_threads = multiprocessing.cpu_count()
-fps = 30
+# Set angle to rotate video by
+angle = 90
 
-simultaneous_vid_list = []
-proj_dir = os.path.dirname(os.path.realpath(__file__))
-data_dir = os.path.join(proj_dir, "data")
-os.makedirs(os.path.join(data_dir, "raw"), exist_ok=True)
+vid_list = []
+vid_names = []
+os.makedirs(raw_dir, exist_ok=True)
 
-for file in os.scandir(os.path.join(data_dir, "raw")):
-    filename = file.path
-    simultaneous_vid_list.append(filename)
 
-print(simultaneous_vid_list)
+for file in os.scandir(raw_dir):
+    vid_list.append(file.path)
+    vid_names.append(file.name)
 
-for vidname in simultaneous_vid_list:
-    clip = VideoFileClip(vidname)
-    clip = clip.subclip(120)
-    clip = clip.rotate(105)
 
-    # width_of_clip2 = clip_resized.w
-    # height_of_clip2 = clip_resized.h
-
-    # clip.ipython_display(width=480)
-    print(vidname)
-    clip.write_videofile(
-        f"vid-R.mp4", threads=num_threads, fps=fps
+os.makedirs(os.path.join(vids_dir, "rotated"), exist_ok=True)
+for vid_name, vid_in in zip(vid_names, vid_list):
+    # Name of output file
+    video_out = os.path.join(
+        vids_dir, "rotated",f'{vid_name.split(".")[0]}_R.mp4'
     )
+
+    # Rotate video using ffmpeg
+    subprocess.call(
+        [
+            'ffmpeg',
+            '-i',
+            vid_in,
+            '-c:v',
+            'h264_nvenc',
+            '-b:v',
+            '10M',
+            '-vf',
+            f"transpose={angle}*PI/180, scale=800:-1, eq=contrast=1.15, eq=brightness=0.01",
+            video_out
+        ]
+    ) 
