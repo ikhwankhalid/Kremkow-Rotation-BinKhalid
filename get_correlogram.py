@@ -103,11 +103,11 @@ if __name__ == "__main__":
             numb = 5000
             numb2 = numb+800
 
-            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])
-            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])
+            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])[numb:numb2]
+            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])[numb:numb2]
 
-            paw_x = np.array(f['Facemap']['paw']['x'])
-            paw_y = np.array(f['Facemap']['paw']['y'])
+            paw_x = np.array(f['Facemap']['paw']['x'])[numb:numb2]
+            paw_y = np.array(f['Facemap']['paw']['y'])[numb:numb2]
 
             whisk1_like = np.array(f['Facemap']['whisker(I)']['likelihood'])
             paw_like = np.array(f['Facemap']['paw']['likelihood'])
@@ -117,8 +117,8 @@ if __name__ == "__main__":
             # whisk1_x = whisk1_x[paw_like>0.9]
             # paw_x = paw_x[paw_like>0.9]
 
-            whisk1_x = low_pass_filter(whisk1_x, 1, 200)
-            paw_x = low_pass_filter(paw_x, 1, 200)
+            # whisk1_x = low_pass_filter(whisk1_x, 1, 200)
+            # paw_x = low_pass_filter(paw_x, 1, 200)
 
             whisk1_x = np.diff(whisk1_x)
             paw_x = np.diff(paw_x)
