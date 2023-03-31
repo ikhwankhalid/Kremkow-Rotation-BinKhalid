@@ -16,7 +16,7 @@ from scipy.signal import correlate
 from scipy.signal import butter, lfilter
 
 
-def plot_correlogram(signal1, signal2, savename):
+def plot_correlogram(signal1, signal2, fps, savename):
     # Calculate the correlogram
     correlogram = correlate(signal1, signal2, mode='full', method='auto')
 
@@ -29,27 +29,27 @@ def plot_correlogram(signal1, signal2, savename):
 
     # Compute the time lags
     time_lags = np.arange(-len(signal1) + 1, len(signal2))
+    time_lags_s = time_lags / 222
 
     # Plot the correlogram
     fig, ax = plt.subplots()
-    ax.plot(time_lags, correlogram)
-    ax.set_xlabel('Time lag')
+    ax.plot(time_lags_s, correlogram)
+    ax.set_xlabel('Time lag (seconds)')
     ax.set_ylabel('Normalized correlation')
     ax.set_title('Correlogram')
 
     # Mark the maximum value
-    ax.plot(time_lags[max_index], max_value, 'ro')
+    ax.plot(time_lags_s[max_index], max_value, 'ro')
 
-    # Create an inset with a zoomed view of the maximum value
-    ax_inset = plt.axes([0.55, 0.55, 0.3, 0.3])
-    ax_inset.plot(time_lags, correlogram)
-    ax_inset.set_xlim(time_lags[max_index] - 10, time_lags[max_index] + 10)
-    ax_inset.set_ylim(0.9, 1.1)
-    ax_inset.set_title('Zoomed Inset')
+    # # Create an inset with a zoomed view of the maximum value
+    # ax_inset = plt.axes([0.55, 0.55, 0.3, 0.3])
+    # ax_inset.plot(time_lags, correlogram)
+    # ax_inset.set_xlim(time_lags[max_index] - 10, time_lags[max_index] + 10)
+    # ax_inset.set_ylim(0.9, 1.1)
+    # ax_inset.set_title('Zoomed Inset')
 
-    print(f"Max at {time_lags[max_index] / 222} seconds.")
+    print(f"Max at {time_lags_s[max_index]} seconds.")
 
-    plt.legend()
     plt.savefig(f"{savename}.png")
 
 
@@ -93,6 +93,19 @@ if __name__ == "__main__":
     for file in os.scandir(proc_dir):
         if file.name.endswith(".h5"):
             f = h5py.File(file.path, 'r')
+            vidname = file.path.split("_")
+
+            trial = "_".join(file.path.split("_")[:2])
+            proc_dict = np.load(f"{trial}_proc.npy", allow_pickle=True).item()
+            motSVD = np.array(proc_dict["motSVD"])[0]
+
+            print(motSVD.shape)
+
+            plt.figure(figsize=(15, 10))
+            plt.plot(motSVD[:3000, :5])
+            plt.savefig("motSVD.png")
+            plt.close()
+
             # plt.figure(figsize=(20, 8))
             # for coord in coord_keys:
             #     like = np.array(f['Facemap'][coord]['likelihood'])
@@ -100,28 +113,26 @@ if __name__ == "__main__":
             #     plt.plot(like, label=coord)
             #     fname = file.name.split(".")[0]
 
-            numb = 5000
-            numb2 = numb+800
+            # numb = 5000
+            # numb2 = numb + 800
 
-            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])[numb:numb2]
-            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])[numb:numb2]
+            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])
+            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])
 
-            paw_x = np.array(f['Facemap']['paw']['x'])[numb:numb2]
-            paw_y = np.array(f['Facemap']['paw']['y'])[numb:numb2]
+            paw_x = np.array(f['Facemap']['paw']['x'])
+            paw_y = np.array(f['Facemap']['paw']['y'])
 
             whisk1_like = np.array(f['Facemap']['whisker(I)']['likelihood'])
             paw_like = np.array(f['Facemap']['paw']['likelihood'])
 
-            # whisk1_x = remove_large_jumps(whisk1_x, 1)
-            # # paw_x = remove_large_jumps(paw_x, 50)
             # whisk1_x = whisk1_x[paw_like>0.9]
             # paw_x = paw_x[paw_like>0.9]
 
             # whisk1_x = low_pass_filter(whisk1_x, 1, 200)
             # paw_x = low_pass_filter(paw_x, 1, 200)
 
-            whisk1_x = np.diff(whisk1_x)
-            paw_x = np.diff(paw_x)
+            # whisk1_x = np.diff(whisk1_x)
+            # paw_x = np.diff(paw_x)
 
             whisk1_x = whisk1_x - np.mean(whisk1_x)
             paw_x = paw_x - np.mean(paw_x)
@@ -137,6 +148,6 @@ if __name__ == "__main__":
             plt.savefig("Likelihood")
             plt.close()
 
-            plot_correlogram(whisk1_x, paw_x, "correlogram")
+            plot_correlogram(whisk1_x, paw_x, 222, "correlogram")
 
             f.close()
