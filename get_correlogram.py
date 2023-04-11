@@ -1,19 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
-from settings import proc_dir, coord_keys, data_keys
 import os
 import h5py
-
-import numpy as np
-import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.signal import correlate
-
-from scipy.signal import butter, lfilter
+from settings import proc_dir, coord_keys, data_keys
+from scipy.signal import butter, lfilter, correlate
 
 
 def plot_correlogram(signal1, signal2, savename):
@@ -93,21 +84,12 @@ if __name__ == "__main__":
     for file in os.scandir(proc_dir):
         if file.name.endswith(".h5"):
             f = h5py.File(file.path, 'r')
-            # plt.figure(figsize=(20, 8))
-            # for coord in coord_keys:
-            #     like = np.array(f['Facemap'][coord]['likelihood'])
 
-            #     plt.plot(like, label=coord)
-            #     fname = file.name.split(".")[0]
+            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])
+            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])
 
-            numb = 5000
-            numb2 = numb+800
-
-            whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])[numb:numb2]
-            whisk1_y = np.array(f['Facemap']['whisker(I)']['y'])[numb:numb2]
-
-            paw_x = np.array(f['Facemap']['paw']['x'])[numb:numb2]
-            paw_y = np.array(f['Facemap']['paw']['y'])[numb:numb2]
+            paw_x = np.array(f['Facemap']['paw']['x'])
+            paw_y = np.array(f['Facemap']['paw']['y'])
 
             whisk1_like = np.array(f['Facemap']['whisker(I)']['likelihood'])
             paw_like = np.array(f['Facemap']['paw']['likelihood'])
@@ -120,11 +102,17 @@ if __name__ == "__main__":
             # whisk1_x = low_pass_filter(whisk1_x, 1, 200)
             # paw_x = low_pass_filter(paw_x, 1, 200)
 
-            whisk1_x = np.diff(whisk1_x)
-            paw_x = np.diff(paw_x)
+            # whisk1_x = np.diff(whisk1_x)
+            # paw_x = np.diff(paw_x)
+
+            # whisk1_y = np.diff(whisk1_y)
+            # paw_y = np.diff(paw_y)
 
             whisk1_x = whisk1_x - np.mean(whisk1_x)
             paw_x = paw_x - np.mean(paw_x)
+
+            whisk1_y = whisk1_y - np.mean(whisk1_y)
+            paw_y = paw_y - np.mean(paw_y)
 
             plt.figure(figsize=(15, 10))
             plt.plot(whisk1_x)
@@ -137,6 +125,8 @@ if __name__ == "__main__":
             plt.savefig("Likelihood")
             plt.close()
 
-            plot_correlogram(whisk1_x, paw_x, "correlogram")
+            plot_correlogram(
+                (whisk1_x + whisk1_y) / 2, (paw_x + paw_y) / 2, "correlogram"
+            )
 
             f.close()

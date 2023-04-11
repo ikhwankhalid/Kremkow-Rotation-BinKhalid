@@ -1,6 +1,7 @@
 import subprocess
 import os
 from settings import vids_dir, raw_dir, proc_dir
+from datetime import datetime
 
 ###############################################################################
 # Parameters                                                                  #
@@ -8,6 +9,48 @@ from settings import vids_dir, raw_dir, proc_dir
 # Set angle to rotate video by
 angle = 90
 
+
+###############################################################################
+# Functions                                                                   #
+###############################################################################
+def cut_video(
+    vid_in,
+    vid_out,
+    t0,
+    t1
+):
+    # Get time difference
+    t0_datetime = datetime.strptime(t0, "%H:%M:%S")
+    t1_datetime = datetime.strptime(t1, "%H:%M:%S")
+    dt_datetime = t1_datetime - t0_datetime
+    # Re-encode video using ffmpeg
+    filter = (
+        f"scale=800:-1, eq=contrast=1.15,"
+        + " eq=brightness=0.01"
+    )
+    subprocess.call(
+        [
+            'ffmpeg',
+            '-accurate_seek',
+            '-ss',
+            t0,
+            '-t',
+            f'{dt_datetime}',
+            '-i',
+            vid_in,
+            '-c:v',
+            'h264_nvenc',           # GPU encoder
+            '-cq:v',                # Constant quality
+            '29',
+            '-maxrate',
+            '100M',
+            '-vf',
+            filter,
+            '-avoid_negative_ts',   # Avoid empty frames
+            'make_zero',
+            vid_out
+        ]
+    )
 
 ###############################################################################
 # Script                                                                      #
