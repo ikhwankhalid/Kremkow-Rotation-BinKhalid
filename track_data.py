@@ -3,41 +3,35 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 import scipy.signal as signal
 import os
-from utils import min2s, min_time
+from utils import min2s, min_time, getVideoInfo
+import settings
+import datetime
+from process_vids import cut_video
 
-def getVideoInfo(
-    ttls, 
-    videoBreakThresh,
-    samplingRate        # neuropixel
-):
-    ttlDiffs = np.diff(ttls)
-    videoBreakInds, = np.where(ttlDiffs >= videoBreakThresh)
-    nVideos = len(videoBreakInds) + 1
-    videoBreaks = ttls[videoBreakInds]
-    videoStartInds = np.append(0, videoBreakInds+1)
-    videoStarts = ttls[videoStartInds]
-    videoEndInds = np.append(videoBreakInds, len(ttls)-1)
-    videoEnds = ttls[videoEndInds]
-    videoDurationsSec = (videoEnds - videoStarts) / samplingRate
-    zeroDurationIdx, = np.where(videoDurationsSec == 0)
-    nZero = len(zeroDurationIdx)
-    if nZero > 0:
-        nVideos -= nZero
-        clippedInds = np.clip(zeroDurationIdx, 0, len(videoBreaks)-1)
-        videoBreakInds = np.delete(videoBreakInds, clippedInds)
-        videoBreaks = np.delete(videoBreaks, clippedInds)
-        videoStartInds = np.delete(videoStartInds, zeroDurationIdx)
-        videoEndInds = np.delete(videoEndInds, zeroDurationIdx)
-        videoStarts = np.delete(videoStarts, zeroDurationIdx)
-        videoEnds = np.delete(videoEnds, zeroDurationIdx)
-        videoDurationsSec = np.delete(videoDurationsSec, zeroDurationIdx)
-    nFrames = videoEndInds - videoStartInds + 1
-    videoFrameRate = (nFrames / videoDurationsSec).mean()
-    return nVideos, videoBreaks, videoStarts, videoEnds, videoDurationsSec, videoFrameRate # video
+# directories
+exp_dir = os.path.join(
+    settings.proj_dir,
+    'data',
+    '2022-04-06_16-04-19_Record Node 105',
+    'experiment1'
+)
+analog_dir = os.path.join(
+    settings.proj_dir,
+    exp_dir,
+    'recording1',
+    'continuous',
+    'NI-DAQmx-103.0'
+)
+ttl_dir = os.path.join(
+    settings.proj_dir, 
+    exp_dir, 
+    'recording1', 
+    'events', 
+    'NI-DAQmx-103.0', 
+    'TTL_1'
+)
 
 # parameters
-raw_file = 'continuous.dat'
-ttl_folder = 'ttl'
 n_ch = 8
 short_window = 100
 sampling_freq = 30000.
@@ -46,12 +40,27 @@ ylim = [-1000, 18000]
 start_ttl = 89113001
 ttlbreakthresh = 400
 
-# load data
-mm = np.memmap(raw_file, dtype=np.int16, mode='r')
+# Load data
+# Analog data containing linear track movement
+mm = np.memmap(
+    os.path.join(analog_dir, 'continuous.dat'), dtype=np.int16, mode='r'
+)
 mm = mm.reshape((n_ch, -1), order='F')
 
-channel_states = np.load(os.path.join(ttl_folder, 'channel_states.npy'), allow_pickle=True)
-timestamps_ttl = np.load(os.path.join(ttl_folder, 'timestamps.npy'), allow_pickle=True)
+# TTL data to get when cameras are active
+channel_states = np.load(
+    os.path.join(ttl_dir, 'channel_states.npy'), allow_pickle=True
+)
+timestamps_ttl = np.load(
+    os.path.join(ttl_dir, 'timestamps.npy'), allow_pickle=True
+)
+
+# channel_states =+ np.amin(channel_states)
+mask = channel_states == 2.
+ch1_times = timestamps_ttl[mask]
+times_ttl = ch1_times - start_ttl
+video_dat = getVideoInfo(times_ttl, ttlbreakthresh, sampling_freq)
+print(video_dat[4])
 
 # Get angle, linear displacement, time
 angle = mm[4, :].copy().astype('float')     # angle
@@ -67,18 +76,22 @@ time_s_short = time_s[0::short_window]
 # for experiment == '2022-04-06_16-04-19':
 # we need to remove first part because it is when the platform signals is
 # still not ok
-start_experiment = 1200
-stop_experiment = 2250
+start_experiment = (video_dat[2][1] + sampling_freq) / sampling_freq
+stop_experiment = (video_dat[3][2] - sampling_freq) / sampling_freq
 
 idx_use = (time_s_short > start_experiment) & (
     time_s_short < stop_experiment)
 
-# angle_short[~idx_use] = np.amin(angle_short[idx_use])
-# linear_short[~idx_use] = np.amin(linear_short[idx_use])
 
-# angle_short = angle_short[idx_use]
-# time_s_short = time_s_short[idx_use]
-# linear_short = linear_short[idx_use]
+# angle_short[~idx_use] = angle_short[~idx_use] + 100
+# linear_short[~idx_use] = linear_short[~idx_use] + 100
+
+# angle_short = angle_short - tempo
+# linear_short = linear_short - tempo
+
+angle_short = angle_short[idx_use]
+time_s_short = time_s_short[idx_use]
+linear_short = linear_short[idx_use]
 
 # smooth the data
 angle_smooth_short = ndimage.gaussian_filter1d(angle_short, 100.)
@@ -124,78 +137,139 @@ states += 1
 start = time_s[0]
 stop = time_s[-1]
 
-plt.figure(1)
-plt.clf()
-
-plt.plot(time_s_short, states)
-
-plt.yticks([1, 2, 3, 4], ['S4', 'S3', 'S2', 'S1'])
-plt.ylim([0, 5])
-
-
-plt.xlim([start, stop])
-
-plt.savefig(os.path.join('plots', 'overview.png'), dpi=300)
-plt.close()
-
-offs = 6
-
 
 def normalise(array):
-    return (array - np.mean(array)) / np.std(array)
+    array -= np.amin(array)
+    return array / np.amax(array)
 
 
 linear_normed = normalise(linear_smooth_short)
-angle_normed = normalise(angle_smooth_short) + offs
-states_normed = normalise(states) + offs
+angle_normed = normalise(angle_smooth_short)
+states_normed = normalise(states)
 
-f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(25,20))
+
+filter_idxs = linear_normed < 0.1
+linear_normed_filtered = linear_normed[filter_idxs]
+time_s_short_filtered = time_s_short[filter_idxs]
+
+
+def cut_from_filtered(
+    track_filtered,
+    time_filtered,
+    vid_dat,
+    vid_idx,
+    sampling_freq,
+):
+    """_summary_
+
+    Args:
+        track_filtered (_type_): _description_
+        time_filtered (_type_): _description_
+        vid_dat (_type_): _description_
+        vid_idx (_type_): _description_
+        sampling_freq (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    idx_start = np.argmin(
+        np.abs(time_filtered - vid_dat[2][vid_idx] / sampling_freq)
+    )
+    idx_end = np.argmin(
+        np.abs(time_filtered - vid_dat[3][vid_idx] / sampling_freq)
+    )
+    track_out = track_filtered[idx_start:idx_end]
+    time_out = time_filtered[idx_start:idx_end]
+
+    t_diffs = np.diff(time_out)
+    timeBreakThresh = np.amin(t_diffs) * 1.5
+    t_data = getVideoInfo(time_out, timeBreakThresh, 1.)
+
+    return track_out, time_out, t_data
+
+
+track1, time1, t1_data = cut_from_filtered(
+    linear_normed_filtered, time_s_short_filtered, video_dat, 1, sampling_freq
+)
+
+factor = 150 / 222
+
+begin_times = np.round(t1_data[2] - time1[0], 0)
+end_times = np.round(t1_data[3] - time1[0], 0)
+durations = np.round(t1_data[4], 0)
+# cut_times = list(zip(begin_times, end_times))
+cut_times = list(zip(begin_times, durations))
+# print(cut_times)
+for entry in video_dat[4]:
+    print(str(datetime.timedelta(seconds=entry)))
+
+
+for cut_time in cut_times:
+    start_vid = str(datetime.timedelta(seconds=cut_time[0]))
+    vid_duration = str(datetime.timedelta(seconds=cut_time[1]))
+    vid_in = os.path.join(settings.proc_dir, 'cam4_2022-04-06-16-20-35.mp4')
+    vid_out = os.path.join(
+        settings.mini_dir, f'cam4_2022-04-06-16-20-35_{cut_time[0]}.mp4'
+    )
+    os.makedirs(settings.mini_dir, exist_ok=True)
+    cut_video(vid_in, vid_out, start_vid, vid_duration)
+
+###############################################################################
+# Plotting                                                                    #
+###############################################################################
+# Overview plot
+plt.figure(figsize=(25, 5))
+plt.plot(time_s_short, linear_normed)
+plt.plot(time_s_short, states_normed, color='red')
+plt.scatter(time_s_short, angle_normed, color='orange')
+plt.vlines(
+    np.hstack((video_dat[2], video_dat[3])) / sampling_freq,
+    -0.1,
+    1,
+    color='m',
+    linewidth=2.
+)
+plt.vlines(
+    t1_data[2],
+    -0.1,
+    1,
+    color='green',
+    linewidth=0.5
+)
+plt.vlines(
+    t1_data[3],
+    -0.1,
+    1,
+    color='green',
+    linewidth=0.5,
+    linestyle="--"
+)
+plt.xlim(t1_data[2][0] - 20, t1_data[3][-1] + 20)
+plt.savefig(os.path.join('plots', "moveit.png"))
+plt.close()
+
+
+# Filter linear track movement
+f, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(25, 20))
+offs = 2
 
 ax1.plot(time_s_short, linear_normed)
-ax1.plot(time_s_short, states_normed, color='red')
-ax1.scatter(time_s_short, angle_normed, color='orange')
-# plt.savefig(os.path.join('plots', "smooth.png"))
-# plt.close()
+ax1.plot(time_s_short, states_normed + offs, color='red')
+ax1.scatter(time_s_short, angle_normed + offs, color='orange')
 
-filter_idxs = linear_normed < -0.30
-linear_normed_filtered = linear_normed[filter_idxs]
-
-# plt.figure(figsize=(20, 10))
 ax2.plot(time_s_short[filter_idxs], linear_normed_filtered)
-ax2.plot(time_s_short, states_normed - offs / 2, color='red')
-ax2.scatter(time_s_short[filter_idxs], angle_normed[filter_idxs] - offs / 2, color='orange')
-# plt.plot(angle_smooth_short[200000:400000])
+ax2.plot(time_s_short, states_normed + offs - 1., color='red')
+ax2.scatter(
+    time_s_short[filter_idxs],
+    angle_normed[filter_idxs] + offs - 1.,
+    color='orange'
+)
 plt.savefig(os.path.join('plots', "smooth_filtered.png"))
 plt.close()
 
-# plt.savefig(os.path.join('plots', "ch_1.png"))
 
-plt.figure(figsize=(15, 5))
-plt.plot(channel_states)
-plt.savefig(os.path.join('plots', "channel_states.png"))
-plt.close()
-
-# channel_states =+ np.amin(channel_states)
-mask = channel_states == 2.
-ch1_times = timestamps_ttl[mask]
-
-times_ttl = ch1_times - start_ttl
-
-print(ch1_times[0])
-# print(len(channel_states))
-
+# Plot when cameras are active(?)
 plt.figure(figsize=(15, 5))
 plt.scatter(ch1_times, np.ones(ch1_times.shape), s=.01)
 plt.savefig(os.path.join('plots', "channel_times.png"))
 plt.close()
-
-
-video_dat = getVideoInfo(times_ttl, ttlbreakthresh, sampling_freq)
-print(video_dat)
-
-plt.figure(figsize=(15, 5))
-plt.plot(time_s_short, linear_normed)
-plt.plot(time_s_short, states_normed, color='red')
-plt.scatter(time_s_short, angle_normed, color='orange')
-plt.vlines(np.hstack((video_dat[2], video_dat[3])) / sampling_freq, -1, 6, color='m', linewidth=5.)
-plt.savefig(os.path.join('plots', "moveit.png"))
