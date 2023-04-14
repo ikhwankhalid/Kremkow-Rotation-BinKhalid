@@ -134,8 +134,8 @@ state_values[:, 3] = np.abs(state_values[:, 3]-angle_smooth_short)
 states = np.argmin(state_values, axis=1)
 states += 1
 
-start = time_s[0]
-stop = time_s[-1]
+# start = time_s[0]
+# stop = time_s[-1]
 
 
 def normalise(array):
@@ -192,7 +192,6 @@ track1, time1, t1_data = cut_from_filtered(
     linear_normed_filtered, time_s_short_filtered, video_dat, 1, sampling_freq
 )
 
-factor = 150 / 222
 
 begin_times = np.round(t1_data[2] - time1[0], 0)
 end_times = np.round(t1_data[3] - time1[0], 0)
@@ -204,7 +203,8 @@ for entry in video_dat[4]:
     print(str(datetime.timedelta(seconds=entry)))
 
 
-for cut_time in cut_times:
+# Minivut video
+"""for cut_time in cut_times:
     start_vid = str(datetime.timedelta(seconds=cut_time[0]))
     vid_duration = str(datetime.timedelta(seconds=cut_time[1]))
     vid_in = os.path.join(settings.proc_dir, 'cam4_2022-04-06-16-20-35.mp4')
@@ -212,7 +212,7 @@ for cut_time in cut_times:
         settings.mini_dir, f'cam4_2022-04-06-16-20-35_{cut_time[0]}.mp4'
     )
     os.makedirs(settings.mini_dir, exist_ok=True)
-    cut_video(vid_in, vid_out, start_vid, vid_duration)
+    cut_video(vid_in, vid_out, start_vid, vid_duration)"""
 
 ###############################################################################
 # Plotting                                                                    #
