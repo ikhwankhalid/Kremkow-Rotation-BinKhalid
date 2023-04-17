@@ -89,9 +89,9 @@ if __name__ == '__main__':
         subprocess.call(
             [
                 'ffmpeg',
-                # '-accurate_seek',
-                # '-ss',
-                # '00:35:00',
+                '-accurate_seek',
+                '-ss',
+                '00:10:00',
                 # '-t',
                 # '00:00:10',
                 '-i',
