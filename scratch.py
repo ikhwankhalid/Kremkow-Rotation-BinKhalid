@@ -1,10 +1,19 @@
 import os
 import numpy as np
+import subprocess
+from settings import vids_dir, raw_dir, proc_dir
+from datetime import datetime
+import cv2
+import h5py
 
-dir = r'D:\2022-04-06_16-04-19_Record Node 105\experiment1\recording1\events\Message_Center-904.0\TEXT_group_1'
+# dir = r'E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\Tatiana_behaviorVids_loaderrors'
+dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\raw"
 
+###############################################################################
+# Script                                                                      #
+###############################################################################
 for file in os.scandir(dir):
-    data = np.load(file.path, allow_pickle=True)
-    print(file.name)
-    print(data.shape)
-    print(data)
+    if file.name.endswith(".h5"):
+        f = h5py.File(file.path, 'r')
+        whisk1_x = np.array(f['Facemap']['whisker(I)']['x'])
+        print(whisk1_x.shape)

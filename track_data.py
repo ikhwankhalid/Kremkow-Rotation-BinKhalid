@@ -203,7 +203,7 @@ for entry in video_dat[4]:
     print(str(datetime.timedelta(seconds=entry)))
 
 
-# Minivut video
+# Minicut video
 """for cut_time in cut_times:
     start_vid = str(datetime.timedelta(seconds=cut_time[0]))
     vid_duration = str(datetime.timedelta(seconds=cut_time[1]))
