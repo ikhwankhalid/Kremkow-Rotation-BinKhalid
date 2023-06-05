@@ -1,5 +1,5 @@
 """
-This script computes the motion SVD of the video file specified by "fname"
+This script computes the movie SVD of the video file specified by "fname"
 """
 
 import os
@@ -8,17 +8,14 @@ import cv2
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
-dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\raw"
-fname = os.path.join(dir, "mouse_face.mp4")
+dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\minicut"
+fname = os.path.join(dir, "cam4_2022-04-06-16-20-35_786.0.mp4")
 
 
-def motion_svd_between_frames(frame1, frame2, n_singular_values):
-    # Calculate the absolute difference between the two frames
-    diff_frame = np.abs(frame1.astype(np.float32) - frame2.astype(np.float32))
-
+def movie_svd_per_frame(frame, n_singular_values):
     # Perform SVD
     try:
-        U, singular_values, Vt = np.linalg.svd(diff_frame, full_matrices=False)
+        U, singular_values, Vt = np.linalg.svd(frame, full_matrices=False)
 
         # Truncate singular values
         trunc_singular_values = np.zeros(n_singular_values)
@@ -36,7 +33,7 @@ def motion_svd_between_frames(frame1, frame2, n_singular_values):
         return np.zeros(n_singular_values)
 
 
-def motion_svd(video_path, n_singular_values=10, n_jobs=-1, chunk_size=1000):
+def movie_svd(video_path, n_singular_values=10, n_jobs=-1, chunk_size=20):
     # Load video
     cap = cv2.VideoCapture(video_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -53,15 +50,13 @@ def motion_svd(video_path, n_singular_values=10, n_jobs=-1, chunk_size=1000):
             else:
                 break
 
-        # Calculate motion SVD between frames in parallel
+        # Calculate movie SVD in parallel
         trunc_singular_values_list = Parallel(
             n_jobs=n_jobs
-        )(
-            delayed(
-                motion_svd_between_frames
-            )(
-                frames[i], frames[i+1], n_singular_values
-            ) for i in range(len(frames) - 1))
+        )(delayed(
+            movie_svd_per_frame
+        )(frames[i], n_singular_values) for i in range(len(frames)))
+
         all_truncated_singular_values.extend(trunc_singular_values_list)
 
         # Check if reached the end of the video
@@ -80,7 +75,9 @@ if __name__ == "__main__":
     n_jobs = -1
     chunk_size = 10000
 
-    singular_values = motion_svd(fname, n_singular_values, n_jobs, chunk_size)
+    singular_values = movie_svd(
+        fname, n_singular_values, n_jobs, chunk_size
+    )
 
     plt.figure()
     plt.plot(singular_values)

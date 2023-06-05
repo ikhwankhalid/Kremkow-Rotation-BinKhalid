@@ -84,7 +84,7 @@ if __name__ == '__main__':
         #     + " eq=brightness=0.01"
         # )
         filter = (
-            f"setpts=PTS*222/150"   # video is really 222 fps?
+            "setpts=PTS*222/150"   # video is really 222 fps?
         )
         subprocess.call(
             [
