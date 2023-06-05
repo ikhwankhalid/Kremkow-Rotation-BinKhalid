@@ -8,8 +8,11 @@ import cv2
 import matplotlib.pyplot as plt
 from joblib import Parallel, delayed
 
-dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\raw"
-fname = os.path.join(dir, "mouse_face.mp4")
+# dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\raw"
+# fname = os.path.join(dir, "mouse_face.mp4")
+
+dir = r"E:\GitHub\Kremkow-Rotation-BinKhalid\data\videos\archive"
+fname = os.path.join(dir, "cam0_2023-03-22-13-33-33_R.mp4")
 
 
 def motion_svd_between_frames(frame1, frame2, n_singular_values):
@@ -84,4 +87,6 @@ if __name__ == "__main__":
 
     plt.figure()
     plt.plot(singular_values)
+    plt.xlabel("Frame")
+    plt.ylabel("Singular value")
     plt.show()
