@@ -164,3 +164,4 @@ data/2022-04-06_16-04-19_Record Node 105/settings.xml
 data/2022-04-06_16-04-19_Record Node 105/experiment1/recording1/continuous/NI-DAQmx-103.0/continuous.dat
 *.oebin
 *.txt
+.vscode/settings.json
